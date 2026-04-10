@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="dark" data-tier="novice" data-color="sapphire">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#07080f">
+  <meta name="description" content="Solo Level Up — Gamified Habit Tracker">
+  <title>SOLO LEVEL UP</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+<!-- ═══════════ TOAST ═══════════ -->
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span id="toastIcon">⚡</span>
+  <span id="toastText">Notification</span>
+</div>
+
+<!-- ═══════════ MODAL: LEVEL UP ═══════════ -->
+<div class="modal-overlay" id="levelUpOverlay" role="dialog" aria-modal="true" aria-label="Level Up">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="levelup-body">
+      <div class="levelup-icon-wrap" id="luIcon">⚔️</div>
+      <div class="levelup-headline">LEVEL UP!</div>
+      <div class="levelup-rank-name" id="luRank">PRIVATE</div>
+      <div class="levelup-num" id="luLevel">Level 5</div>
+      <div class="reward-box" id="luRewardBox"></div>
+      <button class="btn btn-primary" onclick="modals.closeLevelUp()">ACCEPT ⚡</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: PENALTY ANNOUNCEMENT ═══════════ -->
+<div class="modal-overlay" id="penaltyAnnounceOverlay" role="dialog" aria-modal="true" aria-label="Penalty Assigned">
+  <div class="modal">
+    <div class="modal-handle"></div>
+
+    <!-- Header -->
+    <div class="pen-announce-header">
+      <div class="pen-announce-skull">💀</div>
+      <div>
+        <div class="pen-announce-title">PENALTY ASSIGNED</div>
+        <div class="pen-announce-subtitle">Failed quest: <strong id="penTaskName">–</strong></div>
+      </div>
+    </div>
+
+    <!-- XP loss warning -->
+    <div class="pen-xp-loss-row">
+      <span class="pen-xp-loss-icon">📉</span>
+      <span class="pen-xp-loss-text">30% of quest XP has been deducted · HP reduced</span>
+    </div>
+
+    <!-- Penalty items or shield offer -->
+    <div class="pen-announce-label">YOUR PENALTIES:</div>
+    <div id="penAnnounceList"></div>
+
+    <!-- Instruction -->
+    <div class="pen-instruction">
+      Complete these penalties to recover XP.<br>
+      Track your progress in the <strong>Quests</strong> tab.
+    </div>
+
+    <button class="btn btn-danger" style="width:100%;margin-top:12px;"
+            onclick="modals.dismissPenaltyAnnounce()">
+      ⚠️ ACKNOWLEDGED — TRACK PENALTIES
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: USE REWARD ═══════════ -->
+<div class="modal-overlay" id="rewardOverlay" role="dialog" aria-modal="true" aria-label="Use Reward">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="rewName">Use Reward?</div>
+    <div style="text-align:center;font-size:52px;margin:10px 0;" id="rewIcon">🎁</div>
+    <div style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:20px;" id="rewDesc">Description</div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="modals.closeReward()">CANCEL</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="modals.confirmReward()">USE ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ APP SHELL ═══════════ -->
+<div class="app-shell">
+
+  <!-- ── HEADER ── -->
+  <header class="header-bar" id="headerBar">
+    <div class="header-top">
+      <div class="avatar-frame" onclick="showView('profile')" role="button" tabindex="0"
+           aria-label="View profile" onkeydown="if(event.key==='Enter')showView('profile')">
+        <div class="avatar-ring" aria-hidden="true"></div>
+        <div class="avatar-inner" id="avatarInner"></div>
+      </div>
+
+      <div class="header-info">
+        <div class="player-name" id="playerName">PLAYER</div>
+        <div class="rank-badge-text" id="rankBadgeText">◆ UNRANKED — LVL 0</div>
+      </div>
+
+      <div class="header-right">
+        <div class="app-title">SOLO<br>LEVEL UP</div>
+        <button class="toggle on" id="darkModeToggle"
+                onclick="ui.toggleDarkMode()"
+                aria-label="Toggle dark mode"
+                title="Toggle dark/light mode"></button>
+      </div>
+    </div>
+
+    <div class="header-bars">
+      <div class="bar-row">
+        <span class="bar-row-label label-xs">⚡ XP</span>
+        <div class="bar-track" style="flex:1;">
+          <div class="bar-fill bar-fill-xp" id="xpFill" style="width:0%"></div>
+        </div>
+        <span class="bar-row-value label-xs" id="xpLabel">0 / 100</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-row-label label-xs">❤️ HP</span>
+        <div class="bar-track" style="flex:1;">
+          <div class="bar-fill bar-fill-hp" id="hpFill" style="width:100%"></div>
+        </div>
+        <span class="bar-row-value label-xs" id="hpLabel">100 / 100</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── DESKTOP SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-player-block">
+      <div class="avatar-frame" style="width:68px;height:68px;margin:0 auto 10px;"
+           onclick="showView('profile')" role="button" tabindex="0">
+        <div class="avatar-ring"></div>
+        <div class="avatar-inner" id="sideAvatarInner"></div>
+      </div>
+      <div class="player-name" id="sidePlayerName" style="font-size:12px;text-align:center;"></div>
+      <div class="rank-badge-text" id="sideRankText" style="margin-top:3px;text-align:center;"></div>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Main navigation">
+      <button class="sidebar-nav-btn active" data-view="dashboard" onclick="showView('dashboard')">
+        <span class="nav-icon">⚔️</span> Status
+      </button>
+      <button class="sidebar-nav-btn" data-view="quests" onclick="showView('quests')">
+        <span class="nav-icon">📋</span> Quests
+        <span class="sidebar-penalty-badge" id="sidebarPenaltyBadge" style="display:none;"></span>
+      </button>
+      <button class="sidebar-nav-btn" data-view="calendar" onclick="showView('calendar')">
+        <span class="nav-icon">📅</span> Calendar
+      </button>
+      <button class="sidebar-nav-btn" data-view="profile" onclick="showView('profile')">
+        <span class="nav-icon">👤</span> Profile
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="label-xs" style="margin-bottom:8px;">THEME COLOR</div>
+      <div class="color-swatches" id="sidebarSwatches"></div>
+      <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;">
+        <span class="label-xs">DARK MODE</span>
+        <div class="toggle on" id="sidebarDarkToggle"
+             onclick="ui.toggleDarkMode()"
+             role="switch" aria-checked="true" tabindex="0"
+             onkeydown="if(event.key==='Enter'||event.key===' ')ui.toggleDarkMode()"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="main-content" id="mainContent">
+
+    <!-- ═══════════════════ VIEW: DASHBOARD ═══════════════════ -->
+    <div class="view active" id="view-dashboard">
+
+      <div class="meta-row">
+        <div class="streak-badge">
+          <span class="streak-flame">🔥</span>
+          <span id="streakText">0 day streak</span>
+        </div>
+        <div class="phase-pill">
+          <div class="phase-dot phase-morning" id="phaseDot"></div>
+          <span id="phaseText">Morning</span>
+        </div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-pill">
+          <div class="s-val" id="sumTotal">0</div>
+          <div class="s-lbl">TODAY</div>
+        </div>
+        <div class="summary-pill">
+          <div class="s-val" id="sumDone">0</div>
+          <div class="s-lbl">DONE</div>
+        </div>
+        <div class="summary-pill">
+          <div class="s-val" id="sumXp">0</div>
+          <div class="s-lbl">XP EARNED</div>
+        </div>
+      </div>
+
+      <div class="card content-card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <div class="card-title">◈ Skill Radar</div>
+          <span class="card-chevron open">▾</span>
+        </div>
+        <div class="collapsible">
+          <div class="radar-wrap" id="radarContainer"></div>
+        </div>
+      </div>
+
+      <div class="card content-card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <div class="card-title">◈ Attributes</div>
+          <span class="card-chevron open">▾</span>
+        </div>
+        <div class="collapsible">
+          <div class="stats-grid" id="statsGrid"></div>
+        </div>
+      </div>
+
+      <div class="card content-card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <div class="card-title">◈ Today's Missions</div>
+          <span class="card-chevron open">▾</span>
+        </div>
+        <div class="collapsible">
+          <div id="dashTaskList" class="task-list"></div>
+          <div style="padding:4px 16px 14px;">
+            <button class="btn btn-ghost" style="width:100%;" onclick="showView('quests')">
+              VIEW ALL MISSIONS →
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════ VIEW: QUESTS ═══════════════════ -->
+    <div class="view" id="view-quests">
+
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="today"
+                onclick="views.switchQuestTab('today')" role="tab">Today</button>
+        <button class="tab-btn" data-tab="add"
+                onclick="views.switchQuestTab('add')" role="tab">+ Add Quest</button>
+        <button class="tab-btn" data-tab="recurring"
+                onclick="views.switchQuestTab('recurring')" role="tab">Recurring</button>
+      </div>
+
+      <!-- TODAY PANEL -->
+      <div class="quest-tab-panel" data-panel="today">
+
+        <!-- ── PENALTY TRACKER (persistent) ── -->
+        <div id="penaltyTrackerWrap"></div>
+
+        <!-- ── LOCK / SUBMIT ── -->
+        <div id="lockBannerWrap"></div>
+        <div id="submitBtnWrap"></div>
+
+        <!-- ── TASK LIST ── -->
+        <div class="task-list" id="taskListToday"></div>
+        <div class="empty-state" id="emptyTasks" style="display:none;">
+          <div class="empty-icon">⚔️</div>
+          <p>No quests for today.<br>Add missions to start leveling up!</p>
+        </div>
+
+      </div>
+
+      <!-- ADD QUEST PANEL -->
+      <div class="quest-tab-panel" data-panel="add" style="display:none;">
+        <div class="form-panel">
+
+          <div class="form-group">
+            <label class="form-label" for="taskNameInput">Quest Name *</label>
+            <input class="form-input" id="taskNameInput" type="text"
+                   placeholder="e.g. Morning workout, Read 30 pages…"
+                   oninput="tasks.updateXpPreview()">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskDesc">Description (helps AI assign XP)</label>
+            <textarea class="form-textarea" id="taskDesc" rows="2"
+                      placeholder="What exactly will you do? More detail = more XP…"
+                      oninput="tasks.updateXpPreview()"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="taskCat">Category</label>
+              <select class="form-select" id="taskCat" onchange="tasks.updateXpPreview()">
+                <option value="physical">⚔️ Physical</option>
+                <option value="mental">🧠 Mental</option>
+                <option value="financial">💰 Financial</option>
+                <option value="creative">🎨 Creative</option>
+                <option value="social">🤝 Social</option>
+                <option value="learning">📚 Learning</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="taskDiff">Difficulty</label>
+              <select class="form-select" id="taskDiff" onchange="tasks.updateXpPreview()">
+                <option value="easy">Easy (D-Rank)</option>
+                <option value="medium" selected>Medium (C-Rank)</option>
+                <option value="hard">Hard (B-Rank)</option>
+                <option value="epic">Epic (A-Rank)</option>
+                <option value="legendary">Legendary (S-Rank)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="taskTracking">Tracking</label>
+              <select class="form-select" id="taskTracking"
+                      onchange="document.getElementById('counterRow').style.display=this.value==='counter'?'block':'none'">
+                <option value="checkbox">✅ Checkbox</option>
+                <option value="slider">📊 Slider %</option>
+                <option value="counter">🔢 Counter</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="taskRecur">Recurring</label>
+              <select class="form-select" id="taskRecur">
+                <option value="none">One-time</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" id="counterRow" style="display:none;">
+            <label class="form-label" for="taskCounterGoal">Counter Goal</label>
+            <input class="form-input" id="taskCounterGoal" type="number"
+                   placeholder="e.g. 30 pages, 50 reps" min="1">
+          </div>
+
+          <div class="xp-preview-box">
+            ⚡ AI XP Estimate: <span id="xpPreviewVal">—</span>
+          </div>
+
+          <button class="btn btn-primary" onclick="tasks.add()">
+            ⚔️ ADD QUEST
+          </button>
+        </div>
+      </div>
+
+      <!-- RECURRING PANEL -->
+      <div class="quest-tab-panel" data-panel="recurring" style="display:none;">
+        <div class="task-list" id="recurringList"></div>
+        <div class="empty-state" id="emptyRecurring">
+          <div class="empty-icon">🔄</div>
+          <p>No recurring quests yet.<br>Create a quest and set it to Daily or Weekly.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════ VIEW: CALENDAR ═══════════════════ -->
+    <div class="view" id="view-calendar">
+
+      <div class="cal-header">
+        <button class="cal-nav" onclick="views.calNav(-1)" aria-label="Previous month">‹</button>
+        <div class="cal-month" id="calMonthLabel">April 2026</div>
+        <button class="cal-nav" onclick="views.calNav(1)" aria-label="Next month">›</button>
+      </div>
+
+      <div class="cal-grid-wrap">
+        <div class="cal-days-header">
+          <div class="cal-day-lbl">SUN</div><div class="cal-day-lbl">MON</div>
+          <div class="cal-day-lbl">TUE</div><div class="cal-day-lbl">WED</div>
+          <div class="cal-day-lbl">THU</div><div class="cal-day-lbl">FRI</div>
+          <div class="cal-day-lbl">SAT</div>
+        </div>
+        <div class="cal-days" id="calDays"></div>
+      </div>
+
+      <div class="cal-legend">
+        <span>Less</span>
+        <div class="heat-sq" style="background:var(--card2);border:1px solid var(--border);"></div>
+        <div class="heat-sq heat-1"></div><div class="heat-sq heat-2"></div>
+        <div class="heat-sq heat-3"></div><div class="heat-sq heat-4"></div>
+        <div class="heat-sq heat-5"></div>
+        <span>More XP</span>
+      </div>
+
+      <div class="card content-card" id="calDetail" style="display:none;">
+        <div class="card-header">
+          <div class="card-title" id="calDetailTitle">April 8</div>
+        </div>
+        <div class="card-body" id="calDetailBody"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════ VIEW: PROFILE ═══════════════════ -->
+    <div class="view" id="view-profile">
+
+      <div class="section-title">Rank Progression</div>
+      <div class="rank-road" id="rankRoad"></div>
+
+      <div class="section-title">Inventory</div>
+      <div class="inv-grid" id="invGrid"></div>
+      <div class="empty-state" id="emptyInv" style="display:none;">
+        <div class="empty-icon">🎁</div>
+        <p>No rewards yet.<br>Level up to earn items!</p>
+      </div>
+
+      <div class="section-title">Lifetime Stats</div>
+      <div class="stats-grid" id="lifetimeStats"></div>
+
+      <div class="section-title">Settings</div>
+      <div class="card content-card">
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-lbl">Player Name</div>
+            <div class="settings-desc">Your hunter identity</div>
+          </div>
+          <input class="form-input" id="playerNameInput" type="text"
+                 placeholder="PLAYER"
+                 style="width:140px;text-align:right;padding:7px 10px;font-size:13px;"
+                 onchange="setPlayerName(this.value)">
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-lbl">Dark Mode</div>
+            <div class="settings-desc">Toggle light / dark interface</div>
+          </div>
+          <div class="toggle on" id="darkModeToggle"
+               onclick="ui.toggleDarkMode()" role="switch" tabindex="0"
+               onkeydown="if(event.key==='Enter'||event.key===' ')ui.toggleDarkMode()"></div>
+        </div>
+
+        <div class="settings-row" style="flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="settings-lbl">Accent Color</div>
+            <div class="settings-desc">Choose your UI theme</div>
+          </div>
+          <div class="color-swatches" id="profileSwatches"></div>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-lbl">Day Resets At</div>
+            <div class="settings-desc">When daily quests refresh</div>
+          </div>
+          <select class="form-select" id="dayResetSel"
+                  style="width:120px;padding:7px 10px;font-size:13px;"
+                  onchange="setSetting('dayResetTime', parseInt(this.value))">
+            <option value="4">4:00 AM</option>
+            <option value="5">5:00 AM</option>
+            <option value="6">6:00 AM</option>
+            <option value="7">7:00 AM</option>
+            <option value="8">8:00 AM</option>
+          </select>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-lbl">Streak Bonus XP</div>
+            <div class="settings-desc">Extra XP when on a streak</div>
+          </div>
+          <div class="toggle on" id="streakToggle"
+               onclick="state.settings.streakBonus=!state.settings.streakBonus;saveState();this.classList.toggle('on',state.settings.streakBonus)"
+               role="switch" tabindex="0"></div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- ── BOTTOM NAV (mobile) ── -->
+<nav class="bottom-nav" aria-label="Bottom navigation">
+  <button class="nav-btn active" data-view="dashboard" onclick="showView('dashboard')" aria-label="Status">
+    <span class="nav-icon">⚔️</span><span>Status</span>
+  </button>
+  <button class="nav-btn" data-view="quests" onclick="showView('quests')" aria-label="Quests">
+    <span class="nav-icon">📋</span><span>Quests</span>
+    <span class="nav-penalty-dot" id="navPenaltyDot" style="display:none;"></span>
+  </button>
+  <button class="nav-btn" data-view="calendar" onclick="showView('calendar')" aria-label="Calendar">
+    <span class="nav-icon">📅</span><span>Calendar</span>
+  </button>
+  <button class="nav-btn" data-view="profile" onclick="showView('profile')" aria-label="Profile">
+    <span class="nav-icon">👤</span><span>Profile</span>
+  </button>
+</nav>
+
+<!-- ── SCRIPTS ── -->
+<script src="js/data.js"></script>
+<script src="js/state.js"></script>
+<script src="js/avatars.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/views.js"></script>
+<script src="js/modals.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+/* Swatches + sidebar sync */
+(function() {
+  function buildSwatches(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = COLOR_PALETTES.map(function(p) {
+      return '<div class="swatch' + (state.settings.colorTheme === p.id ? ' active' : '') + '"' +
+        ' data-color="' + p.id + '" title="' + p.label + '"' +
+        ' style="background:' + p.hex + ';"' +
+        ' onclick="ui.setColorTheme(\'' + p.id + '\')"' +
+        ' role="radio" aria-label="' + p.label + '" tabindex="0"' +
+        ' onkeydown="if(event.key===\'Enter\'||event.key===\' \')ui.setColorTheme(\'' + p.id + '\')"></div>';
+    }).join('');
+  }
+
+  function syncSidebar() {
+    const sa = document.getElementById('sideAvatarInner');
+    const ha = document.getElementById('avatarInner');
+    if (sa && ha) sa.innerHTML = ha.innerHTML;
+    const sn = document.getElementById('sidePlayerName');
+    const hn = document.getElementById('playerName');
+    if (sn && hn) sn.textContent = hn.textContent;
+    const sr = document.getElementById('sideRankText');
+    const hr = document.getElementById('rankBadgeText');
+    if (sr && hr) sr.textContent = hr.textContent;
+  }
+
+  function updatePenaltyIndicators() {
+    const count = state.pendingPenalties.length;
+    const dot = document.getElementById('navPenaltyDot');
+    const badge = document.getElementById('sidebarPenaltyBadge');
+    if (dot) dot.style.display = count > 0 ? 'block' : 'none';
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    buildSwatches('profileSwatches');
+    buildSwatches('sidebarSwatches');
+    syncSidebar();
+    updatePenaltyIndicators();
+    // Re-run every 2s to keep indicators fresh
+    setInterval(function() {
+      syncSidebar();
+      updatePenaltyIndicators();
+    }, 2000);
+  });
+})();
+</script>
+
+</body>
+</html>
