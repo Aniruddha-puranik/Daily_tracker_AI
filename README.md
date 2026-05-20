@@ -1,2 +1,2 @@
-# Project_Shadow_V3
+# Daily tracker AI
 Experimentation With Claude AI version 3
